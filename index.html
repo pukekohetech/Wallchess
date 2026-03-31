@@ -1,1062 +1,374 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-  <meta name="theme-color" content="#111827" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Wall Chess" />
-  <title>Wall Chess Mobile Pro</title>
-  <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <style>
-    :root{
-      --bg:#0b1020;
-      --bg2:#111827;
-      --panel:#0f172a;
-      --panel2:#111827;
-      --line:#26314d;
-      --text:#eef2ff;
-      --muted:#a9b1d6;
-      --p1:#ff6b6b;
-      --p2:#6bff95;
-      --accent:#57b8ff;
-      --wall:#dfd4b1;
-      --good:#6bff95;
-      --bad:#ff6b6b;
-      --legal:rgba(87,184,255,.22);
-      --capture:rgba(255,107,107,.28);
-      --toolbarH: 82px;
-      --safeTop: env(safe-area-inset-top, 0px);
-      --safeBottom: env(safe-area-inset-bottom, 0px);
-      --radius: 18px;
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%;margin:0;background:radial-gradient(1200px 900px at 15% 10%, #182447 0%, var(--bg) 56%);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-    body{overflow:hidden}
-    button,input,select{font:inherit}
-    .app{height:100%;display:grid;grid-template-rows:auto 1fr auto;}
-    .topbar{
-      padding:calc(10px + var(--safeTop)) 12px 10px;
-      display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;
-      background:linear-gradient(180deg, rgba(0,0,0,.28), rgba(0,0,0,0));
-      z-index:4;
-    }
-    .chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-    .chip{
-      display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;
-      background:rgba(17,24,39,.72);border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(10px);
-      box-shadow:0 10px 30px rgba(0,0,0,.25);font-size:14px;line-height:1.1;
-    }
-    .dot{width:11px;height:11px;border-radius:50%}
-    .dot.p1{background:var(--p1);box-shadow:0 0 10px rgba(255,107,107,.5)}
-    .dot.p2{background:var(--p2);box-shadow:0 0 10px rgba(107,255,149,.5)}
-    .turnChip{font-weight:700}
-    .turnChip.p1{color:var(--p1)}
-    .turnChip.p2{color:var(--p2)}
-    .boardWrap{position:relative;display:flex;align-items:center;justify-content:center;padding:0 10px 8px;min-height:0}
-    #boardCanvas{
-      width:min(100%, 680px);height:auto;max-height:calc(100vh - var(--toolbarH) - 124px - var(--safeTop) - var(--safeBottom));
-      aspect-ratio:1/1;border-radius:22px;touch-action:none;display:block;
-      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
-      border:1px solid rgba(255,255,255,.09);box-shadow:0 16px 50px rgba(0,0,0,.3);
-    }
-    .overlayHint{
-      position:absolute;left:50%;transform:translateX(-50%);bottom:16px;z-index:2;
-      max-width:min(92vw, 680px);padding:8px 12px;border-radius:999px;
-      background:rgba(15,23,42,.78);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(10px);
-      color:var(--muted);font-size:13px;text-align:center;pointer-events:none;
-    }
-    .bottomBar{
-      display:grid;grid-template-columns:repeat(5, 1fr);gap:10px;z-index:4;
-      padding:10px 12px calc(10px + var(--safeBottom));
-      background:linear-gradient(180deg, rgba(15,23,42,.15), rgba(15,23,42,.94) 28%);
-      border-top:1px solid rgba(255,255,255,.08);backdrop-filter:blur(12px);
-    }
-    .bottomBar button,.segBtn,.panel button,.installBtn,.smallBtn{
-      appearance:none;border:none;border-radius:16px;padding:14px 10px;background:#1b2540;color:var(--text);
-      box-shadow:inset 0 0 0 1px rgba(255,255,255,.08), 0 10px 20px rgba(0,0,0,.2);
-    }
-    .bottomBar button{font-size:13px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:5px;min-height:62px}
-    .bottomBar button .icon{font-size:19px;line-height:1}
-    .bottomBar button.active{background:linear-gradient(180deg, #2278ff, #1f5fd1)}
-    .bottomBar button.warn{background:linear-gradient(180deg,#544118,#7b5d16)}
-    .panelScrim{position:fixed;inset:0;background:rgba(0,0,0,.48);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:.18s ease;z-index:9}
-    .panelScrim.show{opacity:1;pointer-events:auto}
-    .sheet{
-      position:fixed;left:0;right:0;bottom:0;z-index:10;transform:translateY(104%);transition:transform .24s ease;
-      background:linear-gradient(180deg,#10192d,#0d1424);border-top-left-radius:24px;border-top-right-radius:24px;
-      border:1px solid rgba(255,255,255,.08);box-shadow:0 -14px 40px rgba(0,0,0,.34);
-      padding:10px 14px calc(18px + var(--safeBottom));max-height:82vh;overflow:auto;
-    }
-    .sheet.show{transform:translateY(0)}
-    .sheetHandle{width:56px;height:6px;border-radius:999px;background:rgba(255,255,255,.16);margin:4px auto 14px}
-    .tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
-    .segBtn.active{background:linear-gradient(180deg,#2c3f6d,#1c2a4a)}
-    .tab{display:none}
-    .tab.active{display:block}
-    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .field{display:grid;gap:7px;margin-bottom:12px}
-    .field label{font-size:13px;color:var(--muted)}
-    .field input,.field select{
-      width:100%;padding:12px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.08);
-      background:#151f36;color:var(--text);outline:none;
-    }
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    .panel h3,.sheet h3{margin:4px 0 10px;font-size:16px}
-    .small{font-size:12px;color:var(--muted);line-height:1.45}
-    .infoCard{padding:12px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);margin-bottom:12px}
-    .historyList{display:grid;gap:8px}
-    .histRow{display:grid;grid-template-columns:44px 1fr 1fr;gap:10px;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.04);font-size:14px;align-items:center}
-    .histNum{color:var(--accent);font-weight:700}
-    .msg{
-      position:absolute;top:12px;right:12px;z-index:3;max-width:min(70vw,300px);
-      padding:10px 12px;border-radius:14px;background:rgba(15,23,42,.82);border:1px solid rgba(255,255,255,.08);
-      color:var(--muted);font-size:13px;backdrop-filter:blur(10px);box-shadow:0 8px 24px rgba(0,0,0,.25)
-    }
-    .msg.good{color:#d7ffe3;border-color:rgba(107,255,149,.35)}
-    .msg.bad{color:#ffd3d3;border-color:rgba(255,107,107,.35)}
-    .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.04);font-size:12px;color:var(--muted)}
-    .installRow{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:16px;background:rgba(87,184,255,.08);border:1px solid rgba(87,184,255,.18);margin-top:6px}
-    .installBtn,.smallBtn{padding:12px 14px;font-weight:700}
-    .smallBtn{background:#212c4b}
-    .danger{background:linear-gradient(180deg,#6a2525,#4f1f1f)!important}
-    .success{background:linear-gradient(180deg,#235939,#1e4b31)!important}
-    .hide{display:none!important}
-    @media (min-width: 900px){
-      .app{grid-template-columns:minmax(300px, 1fr) minmax(300px, 820px);grid-template-rows:auto 1fr auto;}
-      .topbar{grid-column:1 / -1;padding-inline:18px}
-      .boardWrap{padding:0 18px 18px;grid-column:2;grid-row:2}
-      .sideRail{grid-column:1;grid-row:2;display:block;padding:0 0 16px 18px;overflow:auto}
-      .sideRail .panel{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:14px;box-shadow:0 16px 40px rgba(0,0,0,.22)}
-      .bottomBar{grid-column:1 / -1;padding-inline:18px}
-      .sheet,.panelScrim{display:none}
-      #boardCanvas{max-height:calc(100vh - var(--toolbarH) - 160px)}
-    }
-    @media (max-width: 899px){.sideRail{display:none}}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+<title>Wall Chess Mobile Pro v2</title>
+<style>
+:root{
+  --bg:#0b1020; --panel:#111827; --panel2:#182033; --line:#29324d; --text:#eef2ff; --muted:#a9b1d6;
+  --p1:#ff6b6b; --p2:#6bff95; --accent:#57b8ff; --wall:#dfd4b1; --good:#7cf0a8; --bad:#ff7b7b;
+  --safeTop:env(safe-area-inset-top,0px); --safeBottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:radial-gradient(1200px 900px at 15% 10%, #182447 0%, var(--bg) 56%);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+body{overflow:hidden}
+button,input,select{font:inherit}
+.app{height:100%;display:grid;grid-template-rows:auto 1fr auto}
+.topbar{padding:calc(10px + var(--safeTop)) 12px 10px;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:linear-gradient(180deg,rgba(0,0,0,.28),rgba(0,0,0,0))}
+.chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(17,24,39,.76);border:1px solid rgba(255,255,255,.09);backdrop-filter:blur(10px);font-size:14px}
+.dot{width:11px;height:11px;border-radius:50%}.p1{background:var(--p1)}.p2{background:var(--p2)}
+.turnChip{font-weight:800}.turnChip.red{color:var(--p1)}.turnChip.green{color:var(--p2)}
+.boardWrap{position:relative;display:flex;align-items:center;justify-content:center;padding:0 10px 8px;min-height:0}
+#board{width:min(100%,680px);height:auto;max-height:calc(100vh - 170px - var(--safeTop) - var(--safeBottom));aspect-ratio:1;border-radius:22px;touch-action:none;display:block;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));border:1px solid rgba(255,255,255,.09);box-shadow:0 16px 50px rgba(0,0,0,.32)}
+.hint{position:absolute;left:50%;transform:translateX(-50%);bottom:16px;max-width:min(92vw,680px);padding:8px 12px;border-radius:999px;background:rgba(17,24,39,.82);border:1px solid rgba(255,255,255,.08);font-size:13px;color:var(--muted);text-align:center;pointer-events:none}
+.msg{position:absolute;top:12px;right:12px;max-width:min(70vw,320px);padding:10px 12px;border-radius:14px;background:rgba(15,23,42,.84);border:1px solid rgba(255,255,255,.08);font-size:13px;color:var(--muted);box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.msg.good{color:#d7ffe3;border-color:rgba(124,240,168,.32)} .msg.bad{color:#ffd3d3;border-color:rgba(255,123,123,.32)}
+.bottomBar{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:10px 12px calc(10px + var(--safeBottom));background:linear-gradient(180deg,rgba(15,23,42,.15),rgba(15,23,42,.94) 28%);border-top:1px solid rgba(255,255,255,.08);backdrop-filter:blur(12px)}
+.bottomBar button,.segBtn,.smallBtn{appearance:none;border:none;border-radius:16px;padding:14px 10px;background:#1b2540;color:var(--text);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),0 10px 20px rgba(0,0,0,.2)}
+.bottomBar button{font-size:13px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:5px;min-height:62px}.bottomBar .icon{font-size:19px;line-height:1}.bottomBar button.active{background:linear-gradient(180deg,#2278ff,#1f5fd1)}
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.48);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:.18s ease}
+.scrim.show{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;transform:translateY(104%);transition:transform .24s ease;background:linear-gradient(180deg,#10192d,#0d1424);border-top-left-radius:24px;border-top-right-radius:24px;border:1px solid rgba(255,255,255,.08);box-shadow:0 -14px 40px rgba(0,0,0,.34);padding:10px 14px calc(18px + var(--safeBottom));max-height:82vh;overflow:auto}
+.sheet.show{transform:translateY(0)} .handle{width:56px;height:6px;border-radius:999px;background:rgba(255,255,255,.16);margin:4px auto 14px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}.segBtn.active{background:linear-gradient(180deg,#2c3f6d,#1c2a4a)}
+.tab{display:none}.tab.active{display:block}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:grid;gap:7px;margin-bottom:12px}.field label{font-size:13px;color:var(--muted)}
+.field input,.field select{width:100%;padding:12px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:#151f36;color:var(--text);outline:none}
+.infoCard{padding:12px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);margin-bottom:12px}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.smallBtn{padding:12px 14px;font-weight:700}.success{background:linear-gradient(180deg,#235939,#1e4b31)!important}.danger{background:linear-gradient(180deg,#6a2525,#4f1f1f)!important}
+.small{font-size:12px;color:var(--muted);line-height:1.45}.historyList{display:grid;gap:8px}.histRow{display:grid;grid-template-columns:44px 1fr 1fr;gap:10px;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.04);font-size:14px;align-items:center}.histNum{color:var(--accent);font-weight:700}
+@media (min-width:900px){.app{grid-template-columns:minmax(300px,1fr) minmax(300px,820px);grid-template-rows:auto 1fr auto}.topbar{grid-column:1/-1;padding-inline:18px}.side{display:block;grid-column:1;grid-row:2;padding:0 0 16px 18px;overflow:auto}.side .panel{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:14px;box-shadow:0 16px 40px rgba(0,0,0,.22)}.boardWrap{grid-column:2;grid-row:2;padding:0 18px 18px}.bottomBar{grid-column:1/-1;padding-inline:18px}.sheet,.scrim{display:none}}
+@media (max-width:899px){.side{display:none}}
+</style>
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
-      <div class="chips">
-        <div class="chip"><span class="dot p1"></span> P1 walls <strong id="walls1">10</strong></div>
-        <div class="chip"><span class="dot p2"></span> P2 walls <strong id="walls2">10</strong></div>
-        <div class="chip">Board <strong id="boardSizeChip">9×9</strong></div>
+<div class="app">
+  <header class="topbar">
+    <div class="chips">
+      <div class="chip"><span class="dot p1"></span> P1 walls <strong id="walls1">10</strong></div>
+      <div class="chip"><span class="dot p2"></span> P2 walls <strong id="walls2">10</strong></div>
+      <div class="chip">Board <strong id="boardChip">9×9</strong></div>
+    </div>
+    <div class="chip turnChip red" id="turnChip">Red to move</div>
+  </header>
+
+  <aside class="side">
+    <div class="panel">
+      <div class="infoCard">
+        <div class="row" style="justify-content:space-between;align-items:flex-start">
+          <div><div class="small">Mode</div><div id="modeText" style="font-weight:700">Move pawn</div></div>
+          <div><div class="small">Orientation</div><div id="oriText" style="font-weight:700">Horizontal</div></div>
+        </div>
+        <div class="small" style="margin-top:10px">Undo is fixed in this version. In vs AI, one tap on Undo rewinds the full last turn (your move + AI reply) when appropriate.</div>
       </div>
-      <div class="chip turnChip p1" id="turnChip">Red to move</div>
-    </header>
+      <div class="infoCard"><h3 style="margin:0 0 8px">History</h3><div id="historyDesktop" class="historyList"></div></div>
+      <div class="infoCard"><h3 style="margin:0 0 8px">Quick actions</h3><div class="row"><button class="smallBtn" id="undoDesktop">Undo</button><button class="smallBtn" id="newDesktop">New game</button><button class="smallBtn" id="panelDesktop">Settings</button></div></div>
+    </div>
+  </aside>
 
-    <aside class="sideRail">
-      <div class="panel">
-        <h3>Game panel</h3>
-        <div class="infoCard">
-          <div class="row" style="justify-content:space-between;align-items:flex-start">
-            <div>
-              <div class="small">Mode</div>
-              <div id="desktopModeText" style="font-weight:700">Move pawn</div>
-            </div>
-            <div>
-              <div class="small">Orientation</div>
-              <div id="desktopOriText" style="font-weight:700">Horizontal</div>
-            </div>
-          </div>
-          <div class="small" style="margin-top:10px">Tap a highlighted cell to move. In wall mode, tap anywhere near the gap you want—the wall snaps into place. Double-tap board or use Rotate to switch orientation.</div>
-        </div>
-        <div class="infoCard">
-          <h3 style="margin-top:0">Move history</h3>
-          <div id="historyDesktop" class="historyList"></div>
-        </div>
-        <div class="infoCard">
-          <h3 style="margin-top:0">Quick actions</h3>
-          <div class="row">
-            <button class="smallBtn" id="undoBtnDesktop">Undo</button>
-            <button class="smallBtn" id="newBtnDesktop">New game</button>
-            <button class="smallBtn" id="panelBtnDesktop">Settings</button>
-          </div>
-        </div>
-      </div>
-    </aside>
+  <main class="boardWrap">
+    <canvas id="board" width="1000" height="1000"></canvas>
+    <div class="hint" id="hint">Move mode: tap a glowing square. Wall mode: tap near a gap to drop a wall.</div>
+    <div class="msg" id="msg">Ready. Red starts.</div>
+  </main>
 
-    <main class="boardWrap">
-      <canvas id="boardCanvas" width="1000" height="1000" aria-label="Wall chess board"></canvas>
-      <div class="overlayHint" id="hintText">Move mode: tap a glowing square. Wall mode: tap near a gap to drop a wall.</div>
-      <div class="msg" id="msg">Ready. Red starts.</div>
-    </main>
+  <nav class="bottomBar">
+    <button id="moveBtn" class="active"><span class="icon">👣</span><span>Move</span></button>
+    <button id="wallBtn"><span class="icon">🧱</span><span>Wall</span></button>
+    <button id="rotateBtn"><span class="icon">↻</span><span>Rotate</span></button>
+    <button id="undoBtn"><span class="icon">↶</span><span>Undo</span></button>
+    <button id="panelBtn"><span class="icon">⚙️</span><span>Panel</span></button>
+  </nav>
+</div>
 
-    <nav class="bottomBar" aria-label="Controls">
-      <button id="moveBtn" class="active"><span class="icon">👣</span><span>Move</span></button>
-      <button id="wallBtn"><span class="icon">🧱</span><span>Wall</span></button>
-      <button id="rotateBtn"><span class="icon">↻</span><span>Rotate</span></button>
-      <button id="undoBtn"><span class="icon">↶</span><span>Undo</span></button>
-      <button id="panelBtn"><span class="icon">⚙️</span><span>Panel</span></button>
-    </nav>
+<div class="scrim" id="scrim"></div>
+<section class="sheet" id="sheet">
+  <div class="handle"></div>
+  <div class="tabs"><button class="segBtn active" data-tab="settings">Settings</button><button class="segBtn" data-tab="history">History</button></div>
+  <div class="tab active" id="tab-settings">
+    <div class="grid2">
+      <div class="field"><label for="boardSize">Board size</label><input id="boardSize" type="number" min="5" max="13" step="1"></div>
+      <div class="field"><label for="wallsPer">Walls / player</label><input id="wallsPer" type="number" min="1" max="20" step="1"></div>
+    </div>
+    <div class="field"><label for="aiEnabled">AI opponent</label><select id="aiEnabled"><option value="off">Off (2 players)</option><option value="on">On</option></select></div>
+    <div class="grid2">
+      <div class="field"><label for="aiSide">AI side</label><select id="aiSide"><option value="1">Green (P2)</option><option value="0">Red (P1)</option></select></div>
+      <div class="field"><label for="animOn">Animations</label><select id="animOn"><option value="on">On</option><option value="off">Off</option></select></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label for="difficulty">AI style</label><select id="difficulty"><option value="normal">Normal</option><option value="aggressive">Aggressive walls</option><option value="runner">Fast runner</option></select></div>
+      <div class="field"><label for="firstPlayer">Starts first</label><select id="firstPlayer"><option value="0">Red</option><option value="1">Green</option></select></div>
+    </div>
+    <div class="infoCard small">Tip: double-tap the board to rotate wall orientation. On phones, wall placement snaps to the nearest gap so you do not need precision tapping.</div>
+    <div class="row"><button class="smallBtn success" id="applyBtn">Apply & restart</button><button class="smallBtn" id="closeBtn">Close</button><button class="smallBtn danger" id="newBtn">New game</button></div>
   </div>
-
-  <div class="panelScrim" id="panelScrim"></div>
-  <section class="sheet" id="sheet" aria-label="Settings and history panel">
-    <div class="sheetHandle"></div>
-    <div class="tabs">
-      <button class="segBtn active" data-tab="settings">Settings</button>
-      <button class="segBtn" data-tab="history">History</button>
-    </div>
-    <div class="tab active" id="tab-settings">
-      <div class="grid2">
-        <div class="field">
-          <label for="boardSizeInput">Board size</label>
-          <input id="boardSizeInput" type="number" min="5" max="13" step="1" />
-        </div>
-        <div class="field">
-          <label for="wallsInput">Walls / player</label>
-          <input id="wallsInput" type="number" min="1" max="20" step="1" />
-        </div>
-      </div>
-      <div class="field">
-        <label for="aiEnabledInput">AI opponent</label>
-        <select id="aiEnabledInput">
-          <option value="off">Off (2 players)</option>
-          <option value="on">On</option>
-        </select>
-      </div>
-      <div class="grid2">
-        <div class="field">
-          <label for="aiSideInput">AI side</label>
-          <select id="aiSideInput">
-            <option value="1">Green (Player 2)</option>
-            <option value="0">Red (Player 1)</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="animInput">Animations</label>
-          <select id="animInput">
-            <option value="on">On</option>
-            <option value="off">Off</option>
-          </select>
-        </div>
-      </div>
-      <div class="grid2">
-        <div class="field">
-          <label for="difficultyInput">AI style</label>
-          <select id="difficultyInput">
-            <option value="normal">Normal</option>
-            <option value="aggressive">Aggressive walls</option>
-            <option value="runner">Fast runner</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="firstInput">Starts first</label>
-          <select id="firstInput">
-            <option value="0">Red</option>
-            <option value="1">Green</option>
-          </select>
-        </div>
-      </div>
-      <div class="infoCard small">
-        PWA install works when this package is extracted and served over HTTPS or localhost. If you open the HTML directly from Files, the game still works offline, but browser install prompts and service worker caching usually won’t activate on <code>file://</code> URLs.
-      </div>
-      <div class="installRow">
-        <div>
-          <div style="font-weight:700">Add to Home Screen</div>
-          <div class="small" id="installText">Install prompt appears when supported.</div>
-        </div>
-        <button class="installBtn" id="installBtn" disabled>Install</button>
-      </div>
-      <div class="row" style="margin-top:14px">
-        <button class="smallBtn success" id="applyBtn">Apply & restart</button>
-        <button class="smallBtn" id="closeBtn">Close</button>
-        <button class="smallBtn danger" id="newBtn">New game</button>
-      </div>
-    </div>
-    <div class="tab" id="tab-history">
-      <div id="historyMobile" class="historyList"></div>
-    </div>
-  </section>
+  <div class="tab" id="tab-history"><div id="historyMobile" class="historyList"></div></div>
+</section>
 
 <script>
 (() => {
   'use strict';
-
-  const $ = (id) => document.getElementById(id);
+  const $ = id => document.getElementById(id);
   const ui = {
-    canvas: $('boardCanvas'), msg: $('msg'), hint: $('hintText'), turnChip: $('turnChip'),
-    walls1: $('walls1'), walls2: $('walls2'), boardSizeChip: $('boardSizeChip'),
-    moveBtn: $('moveBtn'), wallBtn: $('wallBtn'), rotateBtn: $('rotateBtn'), undoBtn: $('undoBtn'), panelBtn: $('panelBtn'),
-    undoBtnDesktop: $('undoBtnDesktop'), newBtnDesktop: $('newBtnDesktop'), panelBtnDesktop: $('panelBtnDesktop'),
-    sheet: $('sheet'), panelScrim: $('panelScrim'), closeBtn: $('closeBtn'), newBtn: $('newBtn'), applyBtn: $('applyBtn'),
-    boardSizeInput: $('boardSizeInput'), wallsInput: $('wallsInput'), aiEnabledInput: $('aiEnabledInput'), aiSideInput: $('aiSideInput'),
-    animInput: $('animInput'), difficultyInput: $('difficultyInput'), firstInput: $('firstInput'), installBtn: $('installBtn'), installText: $('installText'),
-    historyMobile: $('historyMobile'), historyDesktop: $('historyDesktop'), desktopModeText: $('desktopModeText'), desktopOriText: $('desktopOriText')
+    board:$('board'), msg:$('msg'), hint:$('hint'), turnChip:$('turnChip'), walls1:$('walls1'), walls2:$('walls2'), boardChip:$('boardChip'), modeText:$('modeText'), oriText:$('oriText'),
+    moveBtn:$('moveBtn'), wallBtn:$('wallBtn'), rotateBtn:$('rotateBtn'), undoBtn:$('undoBtn'), panelBtn:$('panelBtn'), undoDesktop:$('undoDesktop'), newDesktop:$('newDesktop'), panelDesktop:$('panelDesktop'),
+    scrim:$('scrim'), sheet:$('sheet'), applyBtn:$('applyBtn'), closeBtn:$('closeBtn'), newBtn:$('newBtn'), boardSize:$('boardSize'), wallsPer:$('wallsPer'), aiEnabled:$('aiEnabled'), aiSide:$('aiSide'), animOn:$('animOn'), difficulty:$('difficulty'), firstPlayer:$('firstPlayer'), historyDesktop:$('historyDesktop'), historyMobile:$('historyMobile')
   };
-
-  const ctx = ui.canvas.getContext('2d');
+  const ctx = ui.board.getContext('2d');
   const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-
-  function loadSettings(){
-    const N = clamp(parseInt(localStorage.getItem('wc_boardSize') || '9', 10), 5, 13);
-    const walls = clamp(parseInt(localStorage.getItem('wc_walls') || '10', 10), 1, 20);
-    const aiEnabled = localStorage.getItem('wc_aiEnabled') || 'off';
-    const aiSide = localStorage.getItem('wc_aiSide') || '1';
-    const anim = localStorage.getItem('wc_anim') || 'on';
-    const difficulty = localStorage.getItem('wc_diff') || 'normal';
-    const first = localStorage.getItem('wc_first') || '0';
-    return { N, walls, aiEnabled, aiSide, anim, difficulty, first };
-  }
 
   let settings = loadSettings();
   let state = null;
   let layout = null;
-  let installPromptEvent = null;
+  let aiTimer = null;
   let messageTimer = null;
 
-  function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
-  function enemy(p){ return p === 0 ? 1 : 0; }
-  function samePos(a,b){ return a && b && a.r === b.r && a.c === b.c; }
-  function inBounds(r,c){ return r >= 0 && r < state.N && c >= 0 && c < state.N; }
-  function keyRC(r,c){ return r + ',' + c; }
-  function vibrate(ms=18){ if(navigator.vibrate) navigator.vibrate(ms); }
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+  function enemy(p){ return p===0?1:0; }
+  function samePos(a,b){ return a && b && a.r===b.r && a.c===b.c; }
+  function keyRC(r,c){ return r+','+c; }
+  function vibrate(ms=16){ if(navigator.vibrate) navigator.vibrate(ms); }
+  function deep(obj){ return JSON.parse(JSON.stringify(obj)); }
 
-  function defaultState(){
-    const mid = Math.floor(settings.N / 2);
+  function loadSettings(){
     return {
-      N: settings.N,
-      wallsPerPlayer: settings.walls,
-      turn: parseInt(settings.first, 10) || 0,
-      mode: 'move',
-      ori: 'h',
-      pawns: [{ r: settings.N - 1, c: mid }, { r: 0, c: mid }],
-      wallsLeft: [settings.walls, settings.walls],
-      walls: [],
-      moveLog: [],
-      history: [],
-      ghostWall: null,
-      messageType: 'neutral',
-      winner: null,
-      aiThinking: false,
-      anim: null,
-      wallFlash: null,
-      pendingTap: null,
+      N: clamp(parseInt(localStorage.getItem('wc2_board') || '9', 10), 5, 13),
+      walls: clamp(parseInt(localStorage.getItem('wc2_walls') || '10', 10), 1, 20),
+      aiEnabled: localStorage.getItem('wc2_ai') || 'off',
+      aiSide: localStorage.getItem('wc2_aiSide') || '1',
+      anim: localStorage.getItem('wc2_anim') || 'on',
+      difficulty: localStorage.getItem('wc2_diff') || 'normal',
+      first: localStorage.getItem('wc2_first') || '0'
     };
   }
-
   function saveSettings(){
-    localStorage.setItem('wc_boardSize', String(settings.N));
-    localStorage.setItem('wc_walls', String(settings.walls));
-    localStorage.setItem('wc_aiEnabled', settings.aiEnabled);
-    localStorage.setItem('wc_aiSide', settings.aiSide);
-    localStorage.setItem('wc_anim', settings.anim);
-    localStorage.setItem('wc_diff', settings.difficulty);
-    localStorage.setItem('wc_first', settings.first);
+    localStorage.setItem('wc2_board', String(settings.N));
+    localStorage.setItem('wc2_walls', String(settings.walls));
+    localStorage.setItem('wc2_ai', settings.aiEnabled);
+    localStorage.setItem('wc2_aiSide', settings.aiSide);
+    localStorage.setItem('wc2_anim', settings.anim);
+    localStorage.setItem('wc2_diff', settings.difficulty);
+    localStorage.setItem('wc2_first', settings.first);
   }
-
-  function applySettingsToForm(){
-    ui.boardSizeInput.value = settings.N;
-    ui.wallsInput.value = settings.walls;
-    ui.aiEnabledInput.value = settings.aiEnabled;
-    ui.aiSideInput.value = settings.aiSide;
-    ui.animInput.value = settings.anim;
-    ui.difficultyInput.value = settings.difficulty;
-    ui.firstInput.value = settings.first;
+  function syncForm(){
+    ui.boardSize.value=settings.N; ui.wallsPer.value=settings.walls; ui.aiEnabled.value=settings.aiEnabled; ui.aiSide.value=settings.aiSide; ui.animOn.value=settings.anim; ui.difficulty.value=settings.difficulty; ui.firstPlayer.value=settings.first;
   }
-
-  function applyFormToSettings(){
-    settings.N = clamp(parseInt(ui.boardSizeInput.value || '9', 10), 5, 13);
-    settings.walls = clamp(parseInt(ui.wallsInput.value || '10', 10), 1, 20);
-    settings.aiEnabled = ui.aiEnabledInput.value;
-    settings.aiSide = ui.aiSideInput.value;
-    settings.anim = ui.animInput.value;
-    settings.difficulty = ui.difficultyInput.value;
-    settings.first = ui.firstInput.value;
+  function readForm(){
+    settings.N = clamp(parseInt(ui.boardSize.value||'9',10),5,13);
+    settings.walls = clamp(parseInt(ui.wallsPer.value||'10',10),1,20);
+    settings.aiEnabled = ui.aiEnabled.value; settings.aiSide = ui.aiSide.value; settings.anim = ui.animOn.value; settings.difficulty = ui.difficulty.value; settings.first = ui.firstPlayer.value;
     saveSettings();
   }
 
-  function setMessage(text, type='neutral', sticky=false){
-    ui.msg.textContent = text;
-    ui.msg.className = 'msg' + (type === 'neutral' ? '' : ' ' + type);
-    clearTimeout(messageTimer);
-    if(!sticky){
-      messageTimer = setTimeout(() => {
-        if(state && state.winner == null){
-          ui.msg.textContent = state.aiThinking ? 'AI is thinking…' : 'Ready.';
-          ui.msg.className = 'msg';
-        }
-      }, 2200);
-    }
-  }
-
-  function setMode(mode){
-    if(state.winner != null) return;
-    state.mode = mode;
-    state.ghostWall = null;
-    ui.moveBtn.classList.toggle('active', mode === 'move');
-    ui.wallBtn.classList.toggle('active', mode === 'wall');
-    ui.hint.textContent = mode === 'move'
-      ? 'Move mode: tap a glowing square. Jump and diagonal rules are automatic.'
-      : 'Wall mode: tap near the gap you want. Rotate to switch horizontal / vertical.';
-    updateHud();
-    draw();
-  }
-
-  function rotateWall(){
-    state.ori = state.ori === 'h' ? 'v' : 'h';
-    ui.desktopOriText.textContent = state.ori === 'h' ? 'Horizontal' : 'Vertical';
-    setMessage('Wall orientation: ' + (state.ori === 'h' ? 'Horizontal' : 'Vertical') + '.', 'neutral');
-    if(state.ghostWall){
-      state.ghostWall.ori = state.ori;
-      const check = wallPlacementLegal(state.ghostWall);
-      state.ghostWall.legal = check.ok;
-    }
-    draw();
-  }
-
-  function updateHud(){
-    ui.walls1.textContent = state.wallsLeft[0];
-    ui.walls2.textContent = state.wallsLeft[1];
-    ui.boardSizeChip.textContent = `${state.N}×${state.N}`;
-    const pName = state.turn === 0 ? 'Red' : 'Green';
-    ui.turnChip.textContent = state.winner != null ? (state.winner === 0 ? 'Red wins' : 'Green wins') : `${pName} to move`;
-    ui.turnChip.className = 'chip turnChip ' + (state.turn === 0 ? 'p1' : 'p2');
-    ui.desktopModeText.textContent = state.mode === 'move' ? 'Move pawn' : 'Place wall';
-    ui.desktopOriText.textContent = state.ori === 'h' ? 'Horizontal' : 'Vertical';
-    renderHistory();
-  }
-
-  function renderHistory(){
-    const list = state.moveLog;
-    const renderTo = (root) => {
-      root.innerHTML = '';
-      if(list.length === 0){
-        const div = document.createElement('div');
-        div.className = 'infoCard small';
-        div.textContent = 'No moves yet.';
-        root.appendChild(div);
-        return;
-      }
-      for(let i = 0; i < list.length; i += 2){
-        const row = document.createElement('div');
-        row.className = 'histRow';
-        const num = document.createElement('div'); num.className = 'histNum'; num.textContent = String((i / 2) + 1) + '.';
-        const w = document.createElement('div'); w.textContent = list[i] || '';
-        const b = document.createElement('div'); b.textContent = list[i+1] || '';
-        row.append(num, w, b); root.appendChild(row);
-      }
+  function defaultState(){
+    const mid = Math.floor(settings.N/2);
+    return {
+      N: settings.N,
+      turn: parseInt(settings.first,10)||0,
+      mode: 'move',
+      ori: 'h',
+      pawns: [{r:settings.N-1,c:mid},{r:0,c:mid}],
+      walls: [],
+      wallsLeft: [settings.walls, settings.walls],
+      moveLog: [],
+      history: [],
+      ghostWall: null,
+      winner: null,
+      aiThinking: false,
+      anim:null,
+      wallFlash:null
     };
-    renderTo(ui.historyMobile);
-    renderTo(ui.historyDesktop);
   }
+
+  function clearAITimer(){ if(aiTimer){ clearTimeout(aiTimer); aiTimer=null; } }
+  function makeSnapshot(tag='turn'){
+    return { tag, turn:state.turn, mode:state.mode, ori:state.ori, pawns:deep(state.pawns), walls:deep(state.walls), wallsLeft:state.wallsLeft.slice(), moveLog:state.moveLog.slice(), winner:state.winner };
+  }
+  function restoreSnapshot(snap){
+    clearAITimer();
+    state.turn=snap.turn; state.mode=snap.mode; state.ori=snap.ori; state.pawns=deep(snap.pawns); state.walls=deep(snap.walls); state.wallsLeft=snap.wallsLeft.slice(); state.moveLog=snap.moveLog.slice(); state.winner=snap.winner;
+    state.ghostWall=null; state.aiThinking=false; state.anim=null; state.wallFlash=null;
+    updateHud(); resizeCanvas(); draw(); maybeAITurn();
+  }
+  function pushHistory(tag='turn'){ state.history.push(makeSnapshot(tag)); if(state.history.length>150) state.history.shift(); }
+
+  function undo(){
+    clearAITimer();
+    if(!state.history.length){ setMessage('Nothing to undo.', 'bad'); return; }
+
+    const aiOn = settings.aiEnabled==='on';
+    const aiSide = parseInt(settings.aiSide,10);
+    const humanSide = enemy(aiSide);
+
+    // Most intuitive behaviour vs AI:
+    // - If it is currently the human's turn, AI has already replied -> undo full round (AI + human move)
+    // - If it is currently the AI's turn or AI was thinking, only undo the human move just made.
+    let steps = 1;
+    if(aiOn){
+      if(state.turn === humanSide && state.history.length >= 2){
+        steps = 2;
+      } else {
+        steps = 1;
+      }
+    }
+
+    let snap = null;
+    while(steps-- > 0 && state.history.length){ snap = state.history.pop(); }
+    if(!snap){ setMessage('Nothing to undo.', 'bad'); return; }
+    restoreSnapshot(snap);
+    setMessage(aiOn ? 'Undid last turn.' : 'Undid last move.', 'neutral');
+    vibrate(12);
+  }
+
+  function setMessage(text,type='neutral',sticky=false){
+    ui.msg.textContent=text; ui.msg.className='msg'+(type==='neutral'?'':' '+type); clearTimeout(messageTimer);
+    if(!sticky){ messageTimer=setTimeout(()=>{ if(state && state.winner==null && !state.aiThinking){ ui.msg.textContent='Ready.'; ui.msg.className='msg'; } },2000); }
+  }
+
+  function inBounds(r,c){ return r>=0 && r<state.N && c>=0 && c<state.N; }
+  function boardToXY(r,c){ return {x:layout.pad + c*layout.cell + layout.cell/2, y:layout.pad + r*layout.cell + layout.cell/2}; }
+  function xyToCell(x,y){ const c=Math.floor((x-layout.pad)/layout.cell), r=Math.floor((y-layout.pad)/layout.cell); return inBounds(r,c)?{r,c}:null; }
+  function pointerXY(ev){ const rect=ui.board.getBoundingClientRect(); const p=ev.touches?ev.touches[0]:ev; return {x:p.clientX-rect.left, y:p.clientY-rect.top}; }
 
   function resizeCanvas(){
-    const rect = ui.canvas.getBoundingClientRect();
-    const sizePx = Math.max(320, Math.min(rect.width, rect.height || rect.width));
-    ui.canvas.width = Math.round(sizePx * dpr);
-    ui.canvas.height = Math.round(sizePx * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const W = sizePx;
-    const pad = Math.max(20, Math.round(W * 0.055));
-    const board = W - pad * 2;
-    layout = {
-      view: W,
-      pad,
-      board,
-      cell: board / state.N,
-      wallThick: Math.max(12, board / 58),
-      pieceR: board / state.N * 0.26,
-      animR: board / state.N * 0.28,
-    };
+    const rect=ui.board.getBoundingClientRect();
+    const sizePx=Math.max(320, Math.min(rect.width, rect.height || rect.width));
+    ui.board.width=Math.round(sizePx*dpr); ui.board.height=Math.round(sizePx*dpr); ctx.setTransform(dpr,0,0,dpr,0,0);
+    const pad=Math.max(20, Math.round(sizePx*0.055)); const board=sizePx-pad*2;
+    layout={view:sizePx,pad,board,cell:board/state.N,wallThick:Math.max(12,board/58),pieceR:board/state.N*0.26, ringR:board/state.N*0.29};
     draw();
   }
 
-  function boardToXY(r,c){
-    return { x: layout.pad + c * layout.cell + layout.cell / 2, y: layout.pad + r * layout.cell + layout.cell / 2 };
-  }
-  function xyToCell(x,y){
-    const c = Math.floor((x - layout.pad) / layout.cell);
-    const r = Math.floor((y - layout.pad) / layout.cell);
-    if(!inBounds(r,c)) return null;
-    return { r, c };
-  }
-  function pointerXY(ev){
-    const rect = ui.canvas.getBoundingClientRect();
-    const p = ev.touches ? ev.touches[0] : ev;
-    return { x: p.clientX - rect.left, y: p.clientY - rect.top };
-  }
-
-  // Movement blocking
+  // Rule engine
   function isBlockedBetween(a,b,walls=state.walls){
-    const dr = b.r - a.r, dc = b.c - a.c;
-    if(Math.abs(dr) + Math.abs(dc) !== 1) return true;
-    const r0 = Math.min(a.r, b.r);
-    const c0 = Math.min(a.c, b.c);
-    if(dr !== 0){
-      const col = a.c;
-      for(const w of walls){
-        if(w.ori !== 'h') continue;
-        if(w.r !== r0) continue;
-        if(w.c === col || w.c === col - 1) return true;
-      }
-      return false;
-    }
-    const row = a.r;
+    const dr=b.r-a.r, dc=b.c-a.c; if(Math.abs(dr)+Math.abs(dc)!==1) return true;
+    const r0=Math.min(a.r,b.r), c0=Math.min(a.c,b.c);
+    if(dr!==0){ const col=a.c; for(const w of walls){ if(w.ori!=='h') continue; if(w.r!==r0) continue; if(w.c===col || w.c===col-1) return true; } return false; }
+    const row=a.r; for(const w of walls){ if(w.ori!=='v') continue; if(w.c!==c0) continue; if(w.r===row || w.r===row-1) return true; } return false;
+  }
+  function wallOverlapsOrCrosses(newWall,walls=state.walls){
     for(const w of walls){
-      if(w.ori !== 'v') continue;
-      if(w.c !== c0) continue;
-      if(w.r === row || w.r === row - 1) return true;
+      if(w.ori===newWall.ori && w.r===newWall.r && w.c===newWall.c) return true;
+      if(newWall.ori==='h' && w.ori==='v' && newWall.r===w.r && newWall.c===w.c) return true;
+      if(newWall.ori==='v' && w.ori==='h' && newWall.r===w.r && newWall.c===w.c) return true;
     }
     return false;
   }
-
-  function wallOverlapsOrCrosses(newWall, walls=state.walls){
-    for(const w of walls){
-      if(w.ori === newWall.ori && w.r === newWall.r && w.c === newWall.c) return true;
-      if(newWall.ori === 'h' && w.ori === 'v' && newWall.r === w.r && newWall.c === w.c) return true;
-      if(newWall.ori === 'v' && w.ori === 'h' && newWall.r === w.r && newWall.c === w.c) return true;
-    }
-    return false;
-  }
-
-  function hasPathForPlayer(player, walls=state.walls){
-    return shortestPath(player, walls).length < Infinity;
-  }
-
-  function shortestPath(player, walls=state.walls){
-    const start = state.pawns[player];
-    const goalRow = player === 0 ? 0 : state.N - 1;
-    const q = [start];
-    const prev = new Map();
-    const dist = new Map();
-    const sk = keyRC(start.r, start.c);
-    prev.set(sk, null); dist.set(sk, 0);
-    let goalKey = null;
-
+  function shortestPath(player,walls=state.walls){
+    const start=state.pawns[player], goalRow=player===0?0:state.N-1;
+    const q=[start], prev=new Map(), dist=new Map(); const sk=keyRC(start.r,start.c); prev.set(sk,null); dist.set(sk,0); let goal=null;
     while(q.length){
-      const cur = q.shift();
-      const ck = keyRC(cur.r, cur.c);
-      if(cur.r === goalRow){ goalKey = ck; break; }
-      const dirs = [{dr:-1,dc:0},{dr:1,dc:0},{dr:0,dc:-1},{dr:0,dc:1}];
-      for(const d of dirs){
-        const nr = cur.r + d.dr, nc = cur.c + d.dc;
-        if(!(nr >= 0 && nr < state.N && nc >= 0 && nc < state.N)) continue;
-        const nxt = {r:nr, c:nc};
-        if(isBlockedBetween(cur, nxt, walls)) continue;
-        const nk = keyRC(nr,nc);
-        if(dist.has(nk)) continue;
-        dist.set(nk, dist.get(ck) + 1);
-        prev.set(nk, ck);
-        q.push(nxt);
+      const cur=q.shift(), ck=keyRC(cur.r,cur.c); if(cur.r===goalRow){ goal=ck; break; }
+      for(const d of [{dr:-1,dc:0},{dr:1,dc:0},{dr:0,dc:-1},{dr:0,dc:1}]){
+        const nr=cur.r+d.dr, nc=cur.c+d.dc; if(!inBounds(nr,nc)) continue; const nxt={r:nr,c:nc}; if(isBlockedBetween(cur,nxt,walls)) continue; const nk=keyRC(nr,nc); if(dist.has(nk)) continue; dist.set(nk,dist.get(ck)+1); prev.set(nk,ck); q.push(nxt);
       }
     }
-    if(goalKey == null) return { length: Infinity, path: [] };
-    const path = [];
-    let curKey = goalKey;
-    while(curKey){
-      const [r,c] = curKey.split(',').map(Number);
-      path.push({r,c});
-      curKey = prev.get(curKey);
-    }
-    path.reverse();
-    return { length: dist.get(goalKey), path };
+    if(goal==null) return {length:Infinity,path:[]};
+    const path=[]; let cur=goal; while(cur){ const [r,c]=cur.split(',').map(Number); path.push({r,c}); cur=prev.get(cur); } path.reverse(); return {length:dist.get(goal),path};
   }
-
+  function hasPathForPlayer(player,walls=state.walls){ return shortestPath(player,walls).length < Infinity; }
   function wallPlacementLegal(wall){
-    if(state.wallsLeft[state.turn] <= 0) return { ok:false, reason:'No walls left.' };
-    if(wall.r < 0 || wall.r > state.N - 2 || wall.c < 0 || wall.c > state.N - 2) return { ok:false, reason:'Out of bounds.' };
-    if(wallOverlapsOrCrosses(wall)) return { ok:false, reason:'Wall overlaps or crosses another wall.' };
-    const testWalls = state.walls.concat([wall]);
-    if(!hasPathForPlayer(0, testWalls)) return { ok:false, reason:'Illegal: blocks all paths for Red.' };
-    if(!hasPathForPlayer(1, testWalls)) return { ok:false, reason:'Illegal: blocks all paths for Green.' };
-    return { ok:true };
+    if(state.wallsLeft[state.turn]<=0) return {ok:false,reason:'No walls left.'};
+    if(wall.r<0||wall.c<0||wall.r>state.N-2||wall.c>state.N-2) return {ok:false,reason:'Out of bounds.'};
+    if(wallOverlapsOrCrosses(wall)) return {ok:false,reason:'Wall overlaps or crosses another wall.'};
+    const test=state.walls.concat([wall]); if(!hasPathForPlayer(0,test)) return {ok:false,reason:'Illegal: blocks all paths for Red.'}; if(!hasPathForPlayer(1,test)) return {ok:false,reason:'Illegal: blocks all paths for Green.'};
+    return {ok:true};
   }
-
   function getLegalPawnMoves(player){
-    const me = state.pawns[player];
-    const opp = state.pawns[enemy(player)];
-    const moves = [];
-    const dirs = [{dr:-1,dc:0},{dr:1,dc:0},{dr:0,dc:-1},{dr:0,dc:1}];
-
-    for(const d of dirs){
-      const adj = { r: me.r + d.dr, c: me.c + d.dc };
-      if(!inBounds(adj.r, adj.c)) continue;
-      if(isBlockedBetween(me, adj)) continue;
-      if(!samePos(adj, opp)){
-        moves.push(adj);
-      } else {
-        const behind = { r: adj.r + d.dr, c: adj.c + d.dc };
-        if(inBounds(behind.r, behind.c) && !isBlockedBetween(adj, behind)){
-          moves.push(behind);
-        } else {
-          if(d.dr !== 0){
-            for(const s of [{dr:0,dc:-1},{dr:0,dc:1}]){
-              const diag = { r: adj.r + s.dr, c: adj.c + s.dc };
-              if(!inBounds(diag.r, diag.c)) continue;
-              if(isBlockedBetween(adj, diag)) continue;
-              moves.push(diag);
-            }
-          } else {
-            for(const s of [{dr:-1,dc:0},{dr:1,dc:0}]){
-              const diag = { r: adj.r + s.dr, c: adj.c + s.dc };
-              if(!inBounds(diag.r, diag.c)) continue;
-              if(isBlockedBetween(adj, diag)) continue;
-              moves.push(diag);
-            }
-          }
-        }
+    const me=state.pawns[player], opp=state.pawns[enemy(player)], moves=[];
+    for(const d of [{dr:-1,dc:0},{dr:1,dc:0},{dr:0,dc:-1},{dr:0,dc:1}]){
+      const adj={r:me.r+d.dr,c:me.c+d.dc}; if(!inBounds(adj.r,adj.c)) continue; if(isBlockedBetween(me,adj)) continue;
+      if(!samePos(adj,opp)) moves.push(adj);
+      else {
+        const behind={r:adj.r+d.dr,c:adj.c+d.dc};
+        if(inBounds(behind.r,behind.c) && !isBlockedBetween(adj,behind)) moves.push(behind);
+        else if(d.dr!==0){ for(const s of [{dr:0,dc:-1},{dr:0,dc:1}]){ const dg={r:adj.r+s.dr,c:adj.c+s.dc}; if(inBounds(dg.r,dg.c)&&!isBlockedBetween(adj,dg)) moves.push(dg);} }
+        else { for(const s of [{dr:-1,dc:0},{dr:1,dc:0}]){ const dg={r:adj.r+s.dr,c:adj.c+s.dc}; if(inBounds(dg.r,dg.c)&&!isBlockedBetween(adj,dg)) moves.push(dg);} }
       }
     }
-    const seen = new Set();
-    return moves.filter(m => {
-      const k = keyRC(m.r,m.c);
-      if(seen.has(k)) return false; seen.add(k); return true;
-    });
+    const seen=new Set(); return moves.filter(m=>{ const k=keyRC(m.r,m.c); if(seen.has(k)) return false; seen.add(k); return true; });
   }
+  function checkWinner(){ if(state.pawns[0].r===0) return 0; if(state.pawns[1].r===state.N-1) return 1; return null; }
 
-  function checkWinner(){
-    if(state.pawns[0].r === 0) return 0;
-    if(state.pawns[1].r === state.N - 1) return 1;
-    return null;
-  }
-
-  function serializeState(){
-    return JSON.stringify({
-      turn: state.turn, mode: state.mode, ori: state.ori, pawns: state.pawns, wallsLeft: state.wallsLeft,
-      walls: state.walls, moveLog: state.moveLog, winner: state.winner
-    });
-  }
-
-  function restoreFrom(data){
-    const obj = JSON.parse(data);
-    state.turn = obj.turn; state.mode = obj.mode; state.ori = obj.ori; state.pawns = obj.pawns;
-    state.wallsLeft = obj.wallsLeft; state.walls = obj.walls; state.moveLog = obj.moveLog; state.winner = obj.winner;
-    state.ghostWall = null; state.aiThinking = false; state.anim = null; state.wallFlash = null;
-    updateHud(); draw(); maybeAITurn();
-  }
-
-  function pushHistory(){ state.history.push(serializeState()); if(state.history.length > 120) state.history.shift(); }
-  function undo(){
-    if(!state.history.length) { setMessage('Nothing to undo.', 'bad'); return; }
-    const prev = state.history.pop();
-    restoreFrom(prev);
-    setMessage('Undid last turn.', 'neutral');
-  }
-
-  function describeMove(player, action){
-    const who = player === 0 ? 'R' : 'G';
-    if(action.type === 'move'){
-      const files = 'abcdefghijklmnopqrstuvwxyz';
-      return `${who} ${files[action.to.c]}${state.N - action.to.r}`;
+  // AI
+  function legalWallsForAI(limit=28){
+    const opp=enemy(state.turn), path=shortestPath(opp).path, out=[]; const seen=new Set();
+    function add(ori,r,c){ if(r<0||c<0||r>state.N-2||c>state.N-2) return; const k=ori+':'+r+':'+c; if(seen.has(k)) return; seen.add(k); const wall={ori,r,c}; if(wallPlacementLegal(wall).ok) out.push(wall); }
+    for(let i=0;i<path.length-1;i++){
+      const a=path[i], b=path[i+1];
+      if(a.r!==b.r){ const rr=Math.min(a.r,b.r); add('h',rr,a.c); add('h',rr,a.c-1); }
+      else { const cc=Math.min(a.c,b.c); add('v',a.r,cc); add('v',a.r-1,cc); }
+      if(out.length>=limit) break;
     }
-    const files = 'abcdefghijklmnopqrstuvwxyz';
-    const rowLabel = state.N - action.wall.r - 1;
-    return `${who} ${action.wall.ori.toUpperCase()} ${files[action.wall.c]}${rowLabel}`;
+    for(const p of state.pawns){ for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){ add('h',p.r+dr,p.c+dc); add('v',p.r+dr,p.c+dc); if(out.length>=limit) return out; } }
+    return out;
+  }
+  function simulateScore(action, aiPlayer){
+    const pawns=deep(state.pawns), walls=deep(state.walls), left=state.wallsLeft.slice();
+    if(action.type==='move') state.pawns[state.turn]=deep(action.to); else { state.walls.push(deep(action.wall)); state.wallsLeft[state.turn]--; }
+    const me=shortestPath(aiPlayer).length, them=shortestPath(enemy(aiPlayer)).length;
+    let score=me*1.2 - them; if(settings.difficulty==='aggressive' && action.type==='wall') score -= 0.6; if(settings.difficulty==='runner' && action.type==='move') score -= 0.5;
+    state.pawns=pawns; state.walls=walls; state.wallsLeft=left; return score;
+  }
+  function chooseAI(){
+    const aiPlayer=state.turn; const actions=[]; for(const m of getLegalPawnMoves(aiPlayer)) actions.push({type:'move',to:m}); if(state.wallsLeft[aiPlayer]>0) for(const w of legalWallsForAI()) actions.push({type:'wall',wall:w});
+    if(!actions.length) return null; let best=actions[0], bestScore=Infinity; for(const a of actions){ const s=simulateScore(a,aiPlayer); if(s<bestScore){ bestScore=s; best=a; } } return best;
+  }
+  function maybeAITurn(){
+    clearAITimer();
+    if(state.winner!=null) return;
+    const aiOn=settings.aiEnabled==='on', aiSide=parseInt(settings.aiSide,10);
+    if(!aiOn || aiSide!==state.turn){ state.aiThinking=false; updateHud(); return; }
+    state.aiThinking=true; updateHud(); setMessage('AI is thinking…','neutral',true);
+    aiTimer=setTimeout(()=>{
+      aiTimer=null; state.aiThinking=false; const action=chooseAI(); if(!action){ setMessage('AI has no move.','bad'); return; }
+      if(action.type==='move') commitMove(action.to); else commitWall(action.wall);
+    }, settings.anim==='on' ? 320 : 120);
   }
 
-  function setTurn(nextTurn){
-    state.turn = nextTurn;
-    state.winner = checkWinner();
-    updateHud();
-    if(state.winner != null){
-      setMessage((state.winner === 0 ? 'Red' : 'Green') + ' wins! 🏁', 'good', true);
-      vibrate(55);
-      draw();
-      return;
-    }
-    maybeAITurn();
-    draw();
-  }
+  function describeMove(player, action){ const who=player===0?'R':'G'; const files='abcdefghijklmnopqrstuvwxyz'; if(action.type==='move') return `${who} ${files[action.to.c]}${state.N-action.to.r}`; return `${who} ${action.wall.ori.toUpperCase()} ${files[action.wall.c]}${state.N-action.wall.r-1}`; }
+  function setTurn(next){ state.turn=next; state.winner=checkWinner(); updateHud(); if(state.winner!=null){ setMessage((state.winner===0?'Red':'Green')+' wins! 🏁','good',true); vibrate(50); draw(); return; } maybeAITurn(); draw(); }
+  function animatePawn(player, from, to){ if(settings.anim!=='on') return; state.anim={player,from,to,start:performance.now(),dur:180}; requestAnimationFrame(animTick); }
+  function animateWall(wall){ if(settings.anim!=='on') return; state.wallFlash={wall,start:performance.now(),dur:160}; requestAnimationFrame(animTick); }
+  function animTick(){ draw(); const now=performance.now(); let again=false; if(state.anim && now-state.anim.start < state.anim.dur) again=true; else state.anim=null; if(state.wallFlash && now-state.wallFlash.start < state.wallFlash.dur) again=true; else state.wallFlash=null; if(again) requestAnimationFrame(animTick); }
 
-  function animatePawn(player, from, to){
-    if(settings.anim !== 'on') return;
-    state.anim = { type:'pawn', player, from, to, start: performance.now(), dur: 180 };
-    requestAnimationFrame(tickAnim);
-  }
-  function animateWall(wall){
-    if(settings.anim !== 'on') return;
-    state.wallFlash = { wall, start: performance.now(), dur: 170 };
-    requestAnimationFrame(tickAnim);
-  }
-  function tickAnim(){
-    draw();
-    const now = performance.now();
-    let again = false;
-    if(state.anim && now - state.anim.start < state.anim.dur) again = true; else state.anim = null;
-    if(state.wallFlash && now - state.wallFlash.start < state.wallFlash.dur) again = true; else state.wallFlash = null;
-    if(again) requestAnimationFrame(tickAnim);
-  }
+  function commitMove(to){ pushHistory('turn'); const player=state.turn; const from=deep(state.pawns[player]); state.pawns[player]=deep(to); animatePawn(player,from,to); state.moveLog.push(describeMove(player,{type:'move',to})); setMessage((player===0?'Red':'Green')+' moved.','good'); setTurn(enemy(player)); }
+  function commitWall(wall){ const chk=wallPlacementLegal(wall); if(!chk.ok){ setMessage(chk.reason,'bad'); vibrate(28); return false; } pushHistory('turn'); const player=state.turn; state.walls.push(deep(wall)); state.wallsLeft[player]--; state.moveLog.push(describeMove(player,{type:'wall',wall})); animateWall(wall); setMessage((player===0?'Red':'Green')+' placed a wall.','good'); setTurn(enemy(player)); return true; }
 
-  function commitMove(to){
-    pushHistory();
-    const player = state.turn;
-    const from = { ...state.pawns[player] };
-    state.pawns[player] = { ...to };
-    animatePawn(player, from, to);
-    state.moveLog.push(describeMove(player, { type:'move', to }));
-    setMessage((player === 0 ? 'Red' : 'Green') + ' moved.', 'good');
-    setTurn(enemy(player));
-  }
+  function setMode(mode){ if(state.winner!=null || state.aiThinking) return; state.mode=mode; state.ghostWall=null; ui.moveBtn.classList.toggle('active',mode==='move'); ui.wallBtn.classList.toggle('active',mode==='wall'); ui.modeText.textContent = mode==='move' ? 'Move pawn' : 'Place wall'; ui.hint.textContent = mode==='move' ? 'Move mode: tap a glowing square. Jump and diagonal rules are automatic.' : 'Wall mode: tap near the gap you want. Rotate to switch horizontal / vertical.'; draw(); }
+  function rotateWall(){ state.ori = state.ori==='h' ? 'v' : 'h'; ui.oriText.textContent = state.ori==='h' ? 'Horizontal' : 'Vertical'; setMessage('Wall orientation: '+ui.oriText.textContent+'.'); if(state.ghostWall){ state.ghostWall.ori=state.ori; state.ghostWall.legal=wallPlacementLegal(state.ghostWall).ok; } draw(); }
+  function updateHud(){ ui.walls1.textContent=state.wallsLeft[0]; ui.walls2.textContent=state.wallsLeft[1]; ui.boardChip.textContent=`${state.N}×${state.N}`; ui.turnChip.textContent = state.winner!=null ? (state.winner===0?'Red wins':'Green wins') : ((state.turn===0?'Red':'Green') + (state.aiThinking ? ' thinking…' : ' to move')); ui.turnChip.className='chip turnChip '+(state.turn===0?'red':'green'); ui.modeText.textContent = state.mode==='move' ? 'Move pawn' : 'Place wall'; ui.oriText.textContent = state.ori==='h' ? 'Horizontal' : 'Vertical'; renderHistory(); }
+  function renderHistory(){ const roots=[ui.historyDesktop, ui.historyMobile]; roots.forEach(root=>{ root.innerHTML=''; if(!state.moveLog.length){ const d=document.createElement('div'); d.className='infoCard small'; d.textContent='No moves yet.'; root.appendChild(d); return; } for(let i=0;i<state.moveLog.length;i+=2){ const row=document.createElement('div'); row.className='histRow'; row.innerHTML=`<div class="histNum">${i/2+1}.</div><div>${state.moveLog[i]||''}</div><div>${state.moveLog[i+1]||''}</div>`; root.appendChild(row);} }); }
 
-  function commitWall(wall){
-    const check = wallPlacementLegal(wall);
-    if(!check.ok){ setMessage(check.reason, 'bad'); vibrate(30); return false; }
-    pushHistory();
-    const player = state.turn;
-    state.walls.push({ ...wall });
-    state.wallsLeft[player] -= 1;
-    state.moveLog.push(describeMove(player, { type:'wall', wall }));
-    animateWall(wall);
-    setMessage((player === 0 ? 'Red' : 'Green') + ' placed a wall.', 'good');
-    setTurn(enemy(player));
-    return true;
-  }
-
-  function drawRoundedRect(x,y,w,h,r, fill, stroke){
-    const rr = Math.min(r, w/2, h/2);
-    ctx.beginPath();
-    ctx.moveTo(x + rr, y);
-    ctx.arcTo(x + w, y, x + w, y + h, rr);
-    ctx.arcTo(x + w, y + h, x, y + h, rr);
-    ctx.arcTo(x, y + h, x, y, rr);
-    ctx.arcTo(x, y, x + w, y, rr);
-    ctx.closePath();
-    if(fill){ ctx.fillStyle = fill; ctx.fill(); }
-    if(stroke){ ctx.strokeStyle = stroke; ctx.stroke(); }
-  }
-
-  function drawBoard(){
-    ctx.clearRect(0,0,layout.view,layout.view);
-    drawRoundedRect(4,4,layout.view-8,layout.view-8,24,'rgba(255,255,255,.02)','rgba(255,255,255,.08)');
-
-    // board background
-    drawRoundedRect(layout.pad, layout.pad, layout.board, layout.board, 18, 'rgba(255,255,255,.035)', 'rgba(255,255,255,.08)');
-
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = getCssVar('--line');
-    for(let i=0; i<=state.N; i++){
-      const p = layout.pad + i * layout.cell;
-      ctx.beginPath(); ctx.moveTo(layout.pad, p); ctx.lineTo(layout.pad + layout.board, p); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(p, layout.pad); ctx.lineTo(p, layout.pad + layout.board); ctx.stroke();
-    }
-
-    // goal rows subtle highlight
-    ctx.fillStyle = 'rgba(255,255,255,.02)';
-    ctx.fillRect(layout.pad, layout.pad, layout.board, layout.cell);
-    ctx.fillRect(layout.pad, layout.pad + layout.board - layout.cell, layout.board, layout.cell);
-
-    // legal moves
-    if(state.winner == null && state.mode === 'move' && !state.aiThinking){
-      const moves = getLegalPawnMoves(state.turn);
-      for(const m of moves){
-        const {x,y} = boardToXY(m.r,m.c);
-        ctx.beginPath();
-        ctx.fillStyle = getCssVar('--legal');
-        ctx.strokeStyle = 'rgba(87,184,255,.42)';
-        ctx.lineWidth = 2;
-        ctx.arc(x,y,layout.cell * .22,0,Math.PI*2); ctx.fill(); ctx.stroke();
-      }
-    }
-
-    // walls
-    for(const w of state.walls) drawWall(w, true);
-    if(state.mode === 'wall' && state.ghostWall && state.winner == null && !state.aiThinking){
-      drawWall(state.ghostWall, false);
-    }
-
-    // animated wall flash
-    if(state.wallFlash){
-      const t = Math.min(1, (performance.now() - state.wallFlash.start) / state.wallFlash.dur);
-      const alpha = 1 - t;
-      ctx.save(); ctx.globalAlpha = alpha * 0.55;
-      drawWall(state.wallFlash.wall, false, true); ctx.restore();
-    }
-
-    // pawns
+  function roundRect(x,y,w,h,r,fill,stroke){ const rr=Math.min(r,w/2,h/2); ctx.beginPath(); ctx.moveTo(x+rr,y); ctx.arcTo(x+w,y,x+w,y+h,rr); ctx.arcTo(x+w,y+h,x,y+h,rr); ctx.arcTo(x,y+h,x,y,rr); ctx.arcTo(x,y,x+w,y,rr); ctx.closePath(); if(fill){ctx.fillStyle=fill; ctx.fill();} if(stroke){ctx.strokeStyle=stroke; ctx.stroke();} }
+  function drawWall(w,solid,flash=false){ const len=layout.cell*2, thick=layout.wallThick; let x,y,ww,hh; const color=(w.legal===false)?getCss('--bad'):getCss('--wall'); const alpha=solid?0.98:(w.legal===false?0.42:0.62); if(w.ori==='h'){ x=layout.pad+w.c*layout.cell; y=layout.pad+(w.r+1)*layout.cell-thick/2; ww=len; hh=thick; } else { x=layout.pad+(w.c+1)*layout.cell-thick/2; y=layout.pad+w.r*layout.cell; ww=thick; hh=len; } ctx.save(); ctx.globalAlpha=alpha; roundRect(x,y,ww,hh,10,color,'rgba(0,0,0,.34)'); if(flash){ ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,.35)'; ctx.strokeRect(x+2,y+2,ww-4,hh-4); } ctx.restore(); }
+  function drawPawn(player){ let p=state.pawns[player]; if(state.anim && state.anim.player===player){ const t=Math.min(1,(performance.now()-state.anim.start)/state.anim.dur); const e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2; p={r:state.anim.from.r+(state.anim.to.r-state.anim.from.r)*e,c:state.anim.from.c+(state.anim.to.c-state.anim.from.c)*e}; }
+    const x=layout.pad+p.c*layout.cell+layout.cell/2, y=layout.pad+p.r*layout.cell+layout.cell/2, color=player===0?getCss('--p1'):getCss('--p2'); ctx.beginPath(); ctx.fillStyle=color; ctx.strokeStyle='rgba(0,0,0,.38)'; ctx.lineWidth=3; ctx.arc(x,y,layout.pieceR,0,Math.PI*2); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.fillStyle='rgba(255,255,255,.18)'; ctx.arc(x-layout.pieceR*.3,y-layout.pieceR*.36,layout.pieceR*.34,0,Math.PI*2); ctx.fill(); if(state.turn===player && state.winner==null){ ctx.beginPath(); ctx.lineWidth=5; ctx.strokeStyle=player===0?'rgba(255,107,107,.5)':'rgba(107,255,149,.5)'; ctx.arc(x,y,layout.ringR,0,Math.PI*2); ctx.stroke(); } }
+  function getCss(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  function draw(){ if(!layout) return; ctx.clearRect(0,0,layout.view,layout.view); roundRect(4,4,layout.view-8,layout.view-8,24,'rgba(255,255,255,.02)','rgba(255,255,255,.08)'); roundRect(layout.pad,layout.pad,layout.board,layout.board,18,'rgba(255,255,255,.035)','rgba(255,255,255,.08)'); ctx.lineWidth=2; ctx.strokeStyle=getCss('--line'); for(let i=0;i<=state.N;i++){ const p=layout.pad+i*layout.cell; ctx.beginPath(); ctx.moveTo(layout.pad,p); ctx.lineTo(layout.pad+layout.board,p); ctx.stroke(); ctx.beginPath(); ctx.moveTo(p,layout.pad); ctx.lineTo(p,layout.pad+layout.board); ctx.stroke(); } ctx.fillStyle='rgba(255,255,255,.02)'; ctx.fillRect(layout.pad,layout.pad,layout.board,layout.cell); ctx.fillRect(layout.pad,layout.pad+layout.board-layout.cell,layout.board,layout.cell);
+    if(state.mode==='move' && state.winner==null && !state.aiThinking){ for(const m of getLegalPawnMoves(state.turn)){ const p=boardToXY(m.r,m.c); ctx.beginPath(); ctx.fillStyle='rgba(87,184,255,.22)'; ctx.strokeStyle='rgba(87,184,255,.42)'; ctx.lineWidth=2; ctx.arc(p.x,p.y,layout.cell*.22,0,Math.PI*2); ctx.fill(); ctx.stroke(); } }
+    for(const w of state.walls) drawWall(w,true); if(state.mode==='wall' && state.ghostWall && state.winner==null && !state.aiThinking) drawWall(state.ghostWall,false); if(state.wallFlash){ const t=Math.min(1,(performance.now()-state.wallFlash.start)/state.wallFlash.dur); ctx.save(); ctx.globalAlpha=(1-t)*0.55; drawWall(state.wallFlash.wall,false,true); ctx.restore(); }
     drawPawn(0); drawPawn(1);
   }
 
-  function drawWall(wall, solid, flash=false){
-    const alpha = solid ? 0.98 : (wall.legal === false ? 0.45 : 0.62);
-    const color = wall.legal === false ? getCssVar('--bad') : getCssVar('--wall');
-    const len = layout.cell * 2;
-    const thick = layout.wallThick;
-    let x,y,w,h;
-    if(wall.ori === 'h'){
-      x = layout.pad + wall.c * layout.cell;
-      y = layout.pad + (wall.r + 1) * layout.cell - thick / 2;
-      w = len; h = thick;
-    } else {
-      x = layout.pad + (wall.c + 1) * layout.cell - thick / 2;
-      y = layout.pad + wall.r * layout.cell;
-      w = thick; h = len;
-    }
-    ctx.save(); ctx.globalAlpha = alpha;
-    drawRoundedRect(x, y, w, h, 10, color, 'rgba(0,0,0,.34)');
-    if(flash){
-      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.strokeRect(x+2,y+2,w-4,h-4);
-    }
-    ctx.restore();
+  function nearestWallFromPoint(x,y,ori){ if(x<layout.pad-10||x>layout.pad+layout.board+10||y<layout.pad-10||y>layout.pad+layout.board+10) return null; const fx=(x-layout.pad)/layout.cell, fy=(y-layout.pad)/layout.cell; if(ori==='h') return {ori:'h', r:clamp(Math.round(fy)-1,0,state.N-2), c:clamp(Math.round(fx-0.5),0,state.N-2)}; return {ori:'v', r:clamp(Math.round(fy-0.5),0,state.N-2), c:clamp(Math.round(fx)-1,0,state.N-2)}; }
+  function updateGhost(ev){ if(state.mode!=='wall'||state.winner!=null||state.aiThinking) return; const p=pointerXY(ev); const w=nearestWallFromPoint(p.x,p.y,state.ori); if(!w){ state.ghostWall=null; draw(); return; } state.ghostWall={...w, legal:wallPlacementLegal(w).ok}; draw(); }
+  function handleTap(ev){ if(state.winner!=null||state.aiThinking) return; const p=pointerXY(ev); if(state.mode==='move'){ const cell=xyToCell(p.x,p.y); if(!cell) return; const hit=getLegalPawnMoves(state.turn).find(m=>m.r===cell.r&&m.c===cell.c); if(hit){ commitMove(hit); vibrate(12); } else { setMessage('Illegal move. Tap a glowing square.','bad'); vibrate(24); } return; } const wall=state.ghostWall || nearestWallFromPoint(p.x,p.y,state.ori); if(!wall){ setMessage('Tap closer to the board to place a wall.','bad'); return; } if(commitWall(wall)) vibrate(15); }
+
+  function openPanel(){ syncForm(); ui.scrim.classList.add('show'); ui.sheet.classList.add('show'); }
+  function closePanel(){ ui.scrim.classList.remove('show'); ui.sheet.classList.remove('show'); }
+  function startNewGame(){ clearAITimer(); state=defaultState(); updateHud(); resizeCanvas(); draw(); setMessage('New game. '+(state.turn===0?'Red':'Green')+' starts.'); maybeAITurn(); }
+
+  function bind(){
+    ui.moveBtn.addEventListener('click',()=>setMode('move')); ui.wallBtn.addEventListener('click',()=>setMode('wall')); ui.rotateBtn.addEventListener('click',rotateWall); ui.undoBtn.addEventListener('click',undo); ui.undoDesktop.addEventListener('click',undo); ui.panelBtn.addEventListener('click',openPanel); ui.panelDesktop.addEventListener('click',openPanel); ui.closeBtn.addEventListener('click',closePanel); ui.scrim.addEventListener('click',closePanel); ui.newBtn.addEventListener('click',()=>{closePanel(); startNewGame();}); ui.newDesktop.addEventListener('click',startNewGame); ui.applyBtn.addEventListener('click',()=>{readForm(); closePanel(); startNewGame();});
+    ui.board.addEventListener('pointermove',updateGhost); ui.board.addEventListener('pointerdown',ev=>{ if(ev.pointerType!=='mouse') updateGhost(ev); }); ui.board.addEventListener('click',handleTap); ui.board.addEventListener('dblclick',ev=>{ev.preventDefault(); rotateWall();}); let lastTap=0; ui.board.addEventListener('touchend',()=>{ const now=Date.now(); if(now-lastTap<300) rotateWall(); lastTap=now; },{passive:true});
+    document.querySelectorAll('[data-tab]').forEach(btn=>btn.addEventListener('click',()=>{ document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b===btn)); document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); $('tab-'+btn.dataset.tab).classList.add('active'); }));
+    window.addEventListener('resize',resizeCanvas); window.addEventListener('orientationchange',resizeCanvas); window.addEventListener('keydown',ev=>{ const k=ev.key.toLowerCase(); if(k==='m') setMode('move'); if(k==='w') setMode('wall'); if(k==='r') rotateWall(); if(k==='u') undo(); if(k==='escape') closePanel(); });
   }
 
-  function pawnPositionForDraw(player){
-    const base = state.pawns[player];
-    if(state.anim && state.anim.type === 'pawn' && state.anim.player === player){
-      const t = Math.min(1, (performance.now() - state.anim.start) / state.anim.dur);
-      const ease = t < .5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2;
-      return { r: state.anim.from.r + (state.anim.to.r - state.anim.from.r) * ease, c: state.anim.from.c + (state.anim.to.c - state.anim.from.c) * ease };
-    }
-    return base;
-  }
-
-  function drawPawn(player){
-    const p = pawnPositionForDraw(player);
-    const x = layout.pad + p.c * layout.cell + layout.cell / 2;
-    const y = layout.pad + p.r * layout.cell + layout.cell / 2;
-    const color = player === 0 ? getCssVar('--p1') : getCssVar('--p2');
-    ctx.beginPath();
-    ctx.fillStyle = color; ctx.strokeStyle = 'rgba(0,0,0,.38)'; ctx.lineWidth = 3;
-    ctx.arc(x,y,layout.pieceR,0,Math.PI*2); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.arc(x-layout.pieceR*.3, y-layout.pieceR*.36, layout.pieceR*.34, 0, Math.PI*2); ctx.fill();
-    if(state.turn === player && state.winner == null){
-      ctx.beginPath(); ctx.lineWidth = 5; ctx.strokeStyle = player===0 ? 'rgba(255,107,107,.5)' : 'rgba(107,255,149,.5)';
-      ctx.arc(x,y,layout.animR,0,Math.PI*2); ctx.stroke();
-    }
-  }
-
-  function draw(){
-    if(!layout) return;
-    drawBoard();
-  }
-
-  function getCssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
-
-  function nearestWallFromPoint(x, y, ori){
-    if(x < layout.pad - 10 || x > layout.pad + layout.board + 10 || y < layout.pad - 10 || y > layout.pad + layout.board + 10) return null;
-    const fx = (x - layout.pad) / layout.cell;
-    const fy = (y - layout.pad) / layout.cell;
-    if(ori === 'h'){
-      const r = clamp(Math.round(fy) - 1, 0, state.N - 2);
-      const c = clamp(Math.round(fx - 0.5), 0, state.N - 2);
-      return { ori:'h', r, c };
-    }
-    const r = clamp(Math.round(fy - 0.5), 0, state.N - 2);
-    const c = clamp(Math.round(fx) - 1, 0, state.N - 2);
-    return { ori:'v', r, c };
-  }
-
-  function updateGhostFromPointer(ev){
-    if(state.mode !== 'wall' || state.winner != null || state.aiThinking) return;
-    const p = pointerXY(ev);
-    const w = nearestWallFromPoint(p.x, p.y, state.ori);
-    if(!w){ state.ghostWall = null; draw(); return; }
-    const check = wallPlacementLegal(w);
-    state.ghostWall = { ...w, legal: check.ok };
-    draw();
-  }
-
-  function maybeCommitFromPointer(ev){
-    if(state.winner != null || state.aiThinking) return;
-    const p = pointerXY(ev);
-    if(state.mode === 'move'){
-      const cell = xyToCell(p.x, p.y);
-      if(!cell) return;
-      const legal = getLegalPawnMoves(state.turn);
-      const hit = legal.find(m => m.r === cell.r && m.c === cell.c);
-      if(hit){ commitMove(hit); vibrate(15); }
-      else { setMessage('Illegal move. Tap a glowing square.', 'bad'); vibrate(26); }
-      return;
-    }
-    const wall = state.ghostWall || nearestWallFromPoint(p.x, p.y, state.ori);
-    if(!wall){ setMessage('Tap closer to the board to place a wall.', 'bad'); return; }
-    const ok = commitWall(wall); if(ok) vibrate(18);
-  }
-
-  function bindEvents(){
-    ui.moveBtn.addEventListener('click', () => setMode('move'));
-    ui.wallBtn.addEventListener('click', () => setMode('wall'));
-    ui.rotateBtn.addEventListener('click', rotateWall);
-    ui.undoBtn.addEventListener('click', undo);
-    ui.undoBtnDesktop.addEventListener('click', undo);
-    ui.panelBtn.addEventListener('click', openPanel);
-    ui.panelBtnDesktop.addEventListener('click', openPanel);
-    ui.closeBtn.addEventListener('click', closePanel);
-    ui.panelScrim.addEventListener('click', closePanel);
-    ui.newBtn.addEventListener('click', () => { closePanel(); startNewGame(); });
-    ui.newBtnDesktop.addEventListener('click', startNewGame);
-    ui.applyBtn.addEventListener('click', () => { applyFormToSettings(); startNewGame(); closePanel(); });
-
-    ui.canvas.addEventListener('pointermove', updateGhostFromPointer);
-    ui.canvas.addEventListener('pointerdown', (ev) => {
-      if(ev.pointerType !== 'mouse') updateGhostFromPointer(ev);
-    });
-    ui.canvas.addEventListener('click', maybeCommitFromPointer);
-    ui.canvas.addEventListener('dblclick', (ev) => { ev.preventDefault(); rotateWall(); });
-
-    let lastTap = 0;
-    ui.canvas.addEventListener('touchend', (ev) => {
-      const now = Date.now();
-      if(now - lastTap < 300){ rotateWall(); }
-      lastTap = now;
-    }, { passive:true });
-
-    window.addEventListener('resize', resizeCanvas);
-    window.addEventListener('orientationchange', resizeCanvas);
-    window.addEventListener('keydown', (ev) => {
-      const k = ev.key.toLowerCase();
-      if(k === 'm') setMode('move');
-      if(k === 'w') setMode('wall');
-      if(k === 'r') rotateWall();
-      if(k === 'u') undo();
-      if(k === 'escape') closePanel();
-    });
-
-    document.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => {
-      document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('active', b === btn));
-      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-    }));
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      installPromptEvent = e;
-      ui.installBtn.disabled = false;
-      ui.installText.textContent = 'Install is available on this browser.';
-    });
-
-    ui.installBtn.addEventListener('click', async () => {
-      if(!installPromptEvent){
-        ui.installText.textContent = 'If no prompt appears, use your browser menu → Add to Home Screen.';
-        return;
-      }
-      installPromptEvent.prompt();
-      await installPromptEvent.userChoice;
-      installPromptEvent = null;
-      ui.installBtn.disabled = true;
-      ui.installText.textContent = 'Install request sent.';
-    });
-  }
-
-  function openPanel(){
-    applySettingsToForm();
-    ui.panelScrim.classList.add('show');
-    ui.sheet.classList.add('show');
-  }
-  function closePanel(){
-    ui.panelScrim.classList.remove('show');
-    ui.sheet.classList.remove('show');
-  }
-
-  function startNewGame(){
-    state = defaultState();
-    if(parseInt(settings.aiSide, 10) === state.turn && settings.aiEnabled === 'on') state.aiThinking = true;
-    updateHud(); resizeCanvas(); draw();
-    setMessage('New game. ' + (state.turn === 0 ? 'Red' : 'Green') + ' starts.', 'neutral');
-    maybeAITurn();
-  }
-
-  // AI
-  function listLegalWallsForAI(maxCount=20){
-    const opp = enemy(state.turn);
-    const oppPath = shortestPath(opp).path;
-    const candidates = [];
-    const push = (ori, r, c) => {
-      if(r < 0 || c < 0 || r > state.N - 2 || c > state.N - 2) return;
-      candidates.push({ori,r,c});
-    };
-    // near opponent shortest path edges
-    for(let i=0;i<oppPath.length-1;i++){
-      const a = oppPath[i], b = oppPath[i+1];
-      if(a.r !== b.r){
-        const rr = Math.min(a.r, b.r);
-        push('h', rr, a.c); push('h', rr, a.c - 1);
-      } else {
-        const cc = Math.min(a.c, b.c);
-        push('v', a.r, cc); push('v', a.r - 1, cc);
-      }
-    }
-    // around pawns
-    for(const p of state.pawns){
-      for(let dr=-1; dr<=1; dr++) for(let dc=-1; dc<=1; dc++){
-        push('h', p.r + dr, p.c + dc); push('v', p.r + dr, p.c + dc);
-      }
-    }
-    const uniq = [];
-    const seen = new Set();
-    for(const c of candidates){
-      const k = c.ori + ':' + c.r + ':' + c.c;
-      if(seen.has(k)) continue; seen.add(k);
-      const ok = wallPlacementLegal(c).ok;
-      if(ok) uniq.push(c);
-      if(uniq.length >= maxCount) break;
-    }
-    return uniq;
-  }
-
-  function simulateActionScore(action, aiPlayer){
-    const oldPawns = JSON.parse(JSON.stringify(state.pawns));
-    const oldWalls = JSON.parse(JSON.stringify(state.walls));
-    const oldLeft = state.wallsLeft.slice();
-
-    if(action.type === 'move') state.pawns[state.turn] = { ...action.to };
-    else { state.walls.push({ ...action.wall }); state.wallsLeft[state.turn] -= 1; }
-
-    const me = shortestPath(aiPlayer).length;
-    const them = shortestPath(enemy(aiPlayer)).length;
-    const meGoal = aiPlayer === 0 ? state.pawns[aiPlayer].r : (state.N - 1 - state.pawns[aiPlayer].r);
-    let score = me * 1.25 - them;
-    if(settings.difficulty === 'aggressive' && action.type === 'wall') score -= 0.6;
-    if(settings.difficulty === 'runner' && action.type === 'move') score -= 0.5;
-    score += meGoal * 0.05;
-
-    state.pawns = oldPawns; state.walls = oldWalls; state.wallsLeft = oldLeft;
-    return score;
-  }
-
-  function chooseAIAction(){
-    const aiPlayer = state.turn;
-    const moveActions = getLegalPawnMoves(aiPlayer).map(m => ({ type:'move', to:m }));
-    const wallActions = state.wallsLeft[aiPlayer] > 0 ? listLegalWallsForAI(22).map(w => ({ type:'wall', wall:w })) : [];
-    const all = moveActions.concat(wallActions);
-    if(all.length === 0) return null;
-
-    let best = all[0], bestScore = Infinity;
-    for(const action of all){
-      const score = simulateActionScore(action, aiPlayer);
-      if(score < bestScore){ bestScore = score; best = action; }
-    }
-    return best;
-  }
-
-  function maybeAITurn(){
-    if(state.winner != null) return;
-    const aiOn = settings.aiEnabled === 'on';
-    const aiSide = parseInt(settings.aiSide, 10);
-    if(!aiOn || aiSide !== state.turn) { state.aiThinking = false; updateHud(); return; }
-    state.aiThinking = true; updateHud(); setMessage('AI is thinking…', 'neutral', true);
-    setTimeout(() => {
-      const action = chooseAIAction();
-      state.aiThinking = false;
-      if(!action){ setMessage('AI has no move.', 'bad'); return; }
-      if(action.type === 'move') commitMove(action.to); else commitWall(action.wall);
-    }, settings.anim === 'on' ? 360 : 150);
-  }
-
-  async function registerPWA(){
-    if(location.protocol === 'file:'){
-      ui.installText.textContent = 'Open via localhost or HTTPS for install + caching.';
-      return;
-    }
-    if('serviceWorker' in navigator){
-      try {
-        await navigator.serviceWorker.register('./sw.js');
-        ui.installText.textContent = 'Offline caching ready when supported.';
-      } catch(err){
-        ui.installText.textContent = 'Service worker unavailable in this context.';
-      }
-    }
-  }
-
-  // Init
-  bindEvents();
-  applySettingsToForm();
-  startNewGame();
-  registerPWA();
+  bind(); syncForm(); startNewGame();
 })();
 </script>
 </body>
